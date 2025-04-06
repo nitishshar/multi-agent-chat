@@ -119,6 +119,12 @@ class AgentCrewBuilder:
             verbose=False
         )
         return self.crew
+    def build_crew_with_agents(self, agents: List[Agent], tasks: List[Task]) -> Crew:
+        """
+        Build the crew with a list of agents and tasks.
+        """
+        self.crew = Crew(agents=agents, tasks=tasks, verbose=False)
+        return self.crew
     
     @st.cache_resource  # Cache the crew instance
     def get_or_create_crew(self, description_template: str, tools: List[BaseTool]) -> Crew:
@@ -138,6 +144,13 @@ class AgentCrewBuilder:
         builder.build_analyst_task(description_template)
         builder.build_reviewer_task()
         return builder.build_crew()
+    
+    @st.cache_resource  # Cache the crew instance
+    def get_or_create_crew_with_agents(self, agents: List[Agent], tasks: List[Task]) -> Crew:
+        """
+        Static method to get or create a crew instance with caching.
+        """
+        return self.build_crew_with_agents(agents, tasks)
     
     def run_crew(self, conversation_history: str, user_request: str) -> Dict[str, Any]:
         """

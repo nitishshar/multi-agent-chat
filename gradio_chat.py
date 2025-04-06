@@ -4,13 +4,13 @@ import os
 from dotenv import load_dotenv
 from typing import List, Dict, Any
 
-# Load environment variables
-load_dotenv()
-
 # Import our modules
 from src.vector_store.store_builder import VectorStoreBuilder
 from src.tools.search_tool import VectorStoreSearchTool, AskForClarificationsTool
 from src.agents.crew import AgentCrewBuilder
+
+# Load environment variables
+load_dotenv()
 
 # Configuration
 VECTOR_DB_PATH = "_vector_db"
@@ -64,12 +64,15 @@ def get_agent_crew():
 - Do NOT rely on external knowledge.
 """
     
-    crew_builder.build_analyst_agent()
-    crew_builder.build_reviewer_agent()
-    crew_builder.build_analyst_task(analyst_task_template)
-    crew_builder.build_reviewer_task()
+    # crew_builder.build_analyst_agent()
+    # crew_builder.build_reviewer_agent()
+    # crew_builder.build_analyst_task(analyst_task_template)
+    # crew_builder.build_reviewer_task()    
+    # return crew_builder.build_crew()
     
-    return crew_builder.build_crew()
+    analyst_agent = crew_builder.build_analyst_agent()
+    analyst_task= crew_builder.build_analyst_task(analyst_task_template)
+    return crew_builder.build_crew_with_agents([analyst_agent], [analyst_task])
 
 def format_history(chat_history):
     """Format chat history for the agent crew"""
@@ -163,7 +166,7 @@ demo = gr.ChatInterface(
         height=700,
         show_label=False,
         container=True,
-        bubble_full_width=False
+        type="messages"
     ),
     analytics_enabled=False
 )

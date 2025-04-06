@@ -1,83 +1,90 @@
 from crewai.tools import BaseTool
-from typing import Type
+from typing import Any, Dict
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
-import streamlit as st
+from pydantic import Field
+import time
+
+# Simple cache implementation
+class SimpleCache:
+    def __init__(self, ttl=300):
+        self.cache = {}
+        self.ttl = ttl
+    
+    def get(self, key):
+        if key in self.cache:
+            timestamp, value = self.cache[key]
+            if time.time() - timestamp < self.ttl:
+                return value
+        return None
+    
+    def set(self, key, value):
+        self.cache[key] = (time.time(), value)
+
+# Global cache instance
+_search_cache = SimpleCache(ttl=300)
 
 class VectorStoreSearchTool(BaseTool):
-    """
-    Tool for searching the vector store for relevant information.
-    """
     name: str = "Vector Store Search"
     description: str = "Search for relevant information in the knowledge base"
-    
-    def __init__(self, storage_path='_vector_db'):
-        """
-        Initialize the search tool with the vector store path.
-        
-        Args:
-            storage_path: Path to the vector store
-        """
-        self.storage_path = storage_path
+    storage_path: str = Field(default="_vector_db")
+    embedder: Any = Field(default_factory=OpenAIEmbeddings)
+
+    def __init__(self, storage_path: str = "_vector_db", **kwargs):
+        # First, call the parent initializer with all provided keyword arguments.
+        super().__init__(**kwargs)
+        # Now, set or override additional attributes.
         self.embedder = OpenAIEmbeddings()
-        super().__init__()
-    
-    @st.cache_data(ttl=300)  # Cache search results for 5 minutes
+        self.storage_path = storage_path
+
     def _search_vector_store(self, query: str, k: int = 4):
-        """
-        Cached function to search the vector store.
-        
-        Args:
-            query: The search query
-            k: Number of results to return
-        """
+        # Check cache first
+        cache_key = f"{query}:{k}"
+        cached_result = _search_cache.get(cache_key)
+        if cached_result:
+            return cached_result
+            
+        # If not in cache, perform search
         vector_store = Chroma(
             persist_directory=self.storage_path,
             embedding_function=self.embedder
         )
         results = vector_store.similarity_search(query, k=k)
-        return results
-    
-    def run(self, query: str, k: int = 4) -> str:
-        """
-        Run the search tool.
         
-        Args:
-            query: The search query
-            k: Number of results to return
-            
-        Returns:
-            String with the search results
-        """
+        # Save to cache
+        _search_cache.set(cache_key, results)
+        return results
+
+    def run(self, query: str, k: int = 4) -> str:
         try:
             results = self._search_vector_store(query, k)
             if not results:
                 return "No relevant information found in the knowledge base."
-            
             output = f"Found {len(results)} relevant document(s):\n\n"
             for i, doc in enumerate(results, 1):
                 metadata = doc.metadata
                 source = metadata.get('source_filename', 'Unknown source')
                 headers = ""
-                
                 for level in range(1, 5):
                     level_key = f"Level {level}"
                     if level_key in metadata:
                         headers += f"{metadata[level_key]} > "
-                
                 if headers:
                     headers = headers.rstrip(" > ")
-                
                 content = doc.page_content.strip()
                 output += f"Document {i}:\n"
                 output += f"Source: {source}\n"
                 output += f"Context: {headers}\n"
                 output += f"Content: {content}\n\n"
-                
             return output
         except Exception as e:
             return f"Error searching the knowledge base: {str(e)}"
 
+    def _run(self, query: str, k: int = 4) -> str:
+        return self.run(query, k=k)
+
+    async def _arun(self, query: str, k: int = 4) -> str:
+        return self.run(query, k=k)
 
 class AskForClarificationsTool(BaseTool):
     """
@@ -99,3 +106,8 @@ class AskForClarificationsTool(BaseTool):
             String with placeholder response
         """
         return f"[In a Streamlit app, the clarification '{question}' would be handled via the UI]" 
+    def _run(self, query: str) -> str:
+        return self.run(query)
+
+    async def _arun(self, query) -> str:
+        return self.run(query)
