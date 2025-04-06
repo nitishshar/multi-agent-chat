@@ -30,9 +30,9 @@ class VectorStoreSearchTool(BaseTool):
     storage_path: str = Field(default="_vector_db")
     embedder: Any = Field(default_factory=OpenAIEmbeddings)
 
-    def __init__(self, storage_path: str = "_vector_db", **kwargs):
+    def __init__(self, storage_path: str = "_vector_db"):
         # First, call the parent initializer with all provided keyword arguments.
-        super().__init__(**kwargs)
+        super().__init__()
         # Now, set or override additional attributes.
         self.embedder = OpenAIEmbeddings()
         self.storage_path = storage_path
