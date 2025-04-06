@@ -15,6 +15,58 @@ load_dotenv()
 # Configuration
 VECTOR_DB_PATH = "_vector_db"
 
+# Create singleton instances of tools and crew
+search_tool = None
+clarification_tool = None
+agent_crew = None
+vector_store = None
+
+def initialize_tools_and_crew():
+    """Initialize the tools and crew once at startup."""
+    global search_tool, clarification_tool, agent_crew
+    
+    # Only initialize if not already done
+    if search_tool is None:
+        print("Initializing search tool and vector store...")
+        search_tool = VectorStoreSearchTool(storage_path=VECTOR_DB_PATH)
+    
+    if clarification_tool is None:
+        print("Initializing clarification tool...")
+        clarification_tool = AskForClarificationsTool()
+        
+    
+    if agent_crew is None:
+        print("Building agent crew...")
+        # Create the agent crew
+        crew_builder = AgentCrewBuilder(tools=[search_tool, clarification_tool])
+        
+        # Build the analyst task with template
+        analyst_task_template = """# Follow these step-by-step instructions:
+1. Understand the user request: Read and analyze thoroughly, taking conversation history into account.
+2. [OPTIONAL] Only ask for clarifications if the request is unclear or ambiguous.
+3. Use the search tool repeatedly as needed to collect relevant information.
+4. Perform any necessary calculations or analyses.
+5. Synthesize gathered data into a comprehensive response.
+6. Provide a detailed answer supported by references.
+
+# Conversation history:
+```{conversation_history}```
+
+# User request:
+```{user_request}```
+
+# IMPORTANT:
+- You MUST only use information found via the search tool.
+- Do NOT rely on external knowledge.
+- When using the search tool, only provide the query parameter.
+"""
+        
+        # Build the crew
+        analyst_agent = crew_builder.build_analyst_agent()
+        analyst_task= crew_builder.build_analyst_task(analyst_task_template)
+        agent_crew = crew_builder.build_crew_with_agents([analyst_agent], [analyst_task])
+        print("Agent crew initialized successfully")
+
 def get_vector_store():
     """
     Get or create the vector store.
@@ -32,47 +84,16 @@ def get_vector_store():
 
 def get_agent_crew():
     """
-    Get or create the agent crew.
+    Get the singleton agent crew instance.
     
     Returns:
         Agent crew instance
     """
-    # Create search tool with the vector store
-    search_tool = VectorStoreSearchTool(storage_path=VECTOR_DB_PATH)
-    clarification_tool = AskForClarificationsTool()
+    # Ensure the tools and crew are initialized
+    if agent_crew is None:
+        initialize_tools_and_crew()
     
-    # Create the agent crew
-    crew_builder = AgentCrewBuilder(tools=[search_tool, clarification_tool])
-    
-    # Build the analyst task with template
-    analyst_task_template = """# Follow these step-by-step instructions:
-1. Understand the user request: Read and analyze thoroughly, taking conversation history into account.
-2. [OPTIONAL] Only ask for clarifications if the request is unclear or ambiguous.
-3. Use the search tool repeatedly as needed to collect relevant information.
-4. Perform any necessary calculations or analyses.
-5. Synthesize gathered data into a comprehensive response.
-6. Provide a detailed answer supported by references.
-
-# Conversation history:
-```{conversation_history}```
-
-# User request:
-```{user_request}```
-
-# IMPORTANT:
-- You MUST only use information found via the search tool.
-- Do NOT rely on external knowledge.
-"""
-    
-    # crew_builder.build_analyst_agent()
-    # crew_builder.build_reviewer_agent()
-    # crew_builder.build_analyst_task(analyst_task_template)
-    # crew_builder.build_reviewer_task()    
-    # return crew_builder.build_crew()
-    
-    analyst_agent = crew_builder.build_analyst_agent()
-    analyst_task= crew_builder.build_analyst_task(analyst_task_template)
-    return crew_builder.build_crew_with_agents([analyst_agent], [analyst_task])
+    return agent_crew
 
 def format_history(chat_history):
     """Format chat history for the agent crew"""
@@ -101,14 +122,9 @@ def process_message(message, history):
     # Yield an initial thinking indicator
     yield "Thinking: Analyzing your question..."
     
-    try:
-        # Get vector store
-        vector_store = get_vector_store()
-        if not vector_store:
-            yield "Error: No vector store found. Please process documents first."
-            return
+    try:       
         
-        # Get agent crew
+        # Get agent crew (will initialize if needed)
         crew = get_agent_crew()
         
         # Format conversation history for the crew
@@ -145,6 +161,9 @@ def process_message(message, history):
     except Exception as e:
         # Handle errors
         yield f"Error: {str(e)}"
+
+# Initialize tools and crew at startup
+initialize_tools_and_crew()
 
 # Create the Gradio Chat Interface
 demo = gr.ChatInterface(

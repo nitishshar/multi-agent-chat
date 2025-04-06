@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from pydantic import Field
@@ -29,6 +29,7 @@ class VectorStoreSearchTool(BaseTool):
     description: str = "Search for relevant information in the knowledge base"
     storage_path: str = Field(default="_vector_db")
     embedder: Any = Field(default_factory=OpenAIEmbeddings)
+    vector_store: Any = Field(default_factory=Chroma)
 
     def __init__(self, storage_path: str = "_vector_db"):
         # First, call the parent initializer with all provided keyword arguments.
@@ -36,26 +37,27 @@ class VectorStoreSearchTool(BaseTool):
         # Now, set or override additional attributes.
         self.embedder = OpenAIEmbeddings()
         self.storage_path = storage_path
+        self.vector_store = Chroma(
+            persist_directory=self.storage_path,
+            embedding_function=self.embedder
+        )
+
 
     def _search_vector_store(self, query: str, k: int = 4):
         # Check cache first
         cache_key = f"{query}:{k}"
         cached_result = _search_cache.get(cache_key)
         if cached_result:
-            return cached_result
-            
-        # If not in cache, perform search
-        vector_store = Chroma(
-            persist_directory=self.storage_path,
-            embedding_function=self.embedder
-        )
-        results = vector_store.similarity_search(query, k=k)
+            return cached_result           
+       
+        results = self.vector_store.similarity_search(query, k=k)
         
         # Save to cache
         _search_cache.set(cache_key, results)
         return results
 
-    def _run(self, query: str, k: Optional[int] = 4) -> str:
+    def _run(self, query: str) -> str:
+        k = 5
         """Execute the tool's search functionality."""
         try:
             results = self._search_vector_store(query, k)
@@ -111,8 +113,8 @@ class AskForClarificationsTool(BaseTool):
             String with placeholder response
         """
         return f"[In a Streamlit app, the clarification '{question}' would be handled via the UI]" 
-    def _run(self, query: str) -> str:
-        return self.run(query)
+    def _run(self, question: str) -> str:
+        return self.run(question)
 
-    async def _arun(self, query) -> str:
-        return self.run(query)
+    async def _arun(self, question) -> str:
+        return self.run(question)
