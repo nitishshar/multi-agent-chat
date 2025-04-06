@@ -121,27 +121,108 @@ def process_message(message, history):
     
     # Yield an initial thinking indicator
     yield "Thinking: Analyzing your question..."
+    time.sleep(0.5)  # Brief pause for UI update
     
-    try:       
+    try:
+        # Get vector store
+        yield "Thinking: Connecting to document database..."
+        vector_store = get_vector_store()
+        if not vector_store:
+            yield "Error: No vector store found. Please process documents first."
+            return
         
         # Get agent crew (will initialize if needed)
+        yield "Thinking: Initializing research team..."
         crew = get_agent_crew()
         
         # Format conversation history for the crew
+        yield "Thinking: Processing conversation history..."
         formatted_history = format_history(history)
         
         # Update thinking status
         yield "Thinking: Searching for relevant information in documents..."
+        time.sleep(1)  # Brief pause for UI update
         
         # Process the message with the crew
-        result = crew.kickoff(
-            inputs={
-                "conversation_history": formatted_history,
-                "user_request": message
-            }
-        )
+        yield "Working: Starting research process..."
+        time.sleep(1)  # Brief pause for UI update
+        
+        # Process the message with the crew with timeout
+        import threading
+        import queue
+        
+        result_queue = queue.Queue()
+        
+        def run_crew():
+            try:
+                result = crew.kickoff(
+                    inputs={
+                        "conversation_history": formatted_history,
+                        "user_request": message
+                    }
+                )
+                result_queue.put(("success", result))
+            except Exception as e:
+                result_queue.put(("error", str(e)))
+        
+        # Start crew in a thread
+        thread = threading.Thread(target=run_crew)
+        thread.start()
+        
+        # Wait for result with progress updates
+        timeout_seconds = 180  # 3 minute timeout
+        steps = ["Searching documents...", 
+                 "Analyzing information...", 
+                 "Synthesizing data...",
+                 "Formulating response...",
+                 "Reviewing information...",
+                 "Finalizing answer..."]
+        
+        # Send progress updates while waiting
+        step_index = 0
+        loop_count = 0
+        
+        while thread.is_alive():
+            # Check if we have a result
+            try:
+                status, result = result_queue.get_nowait()
+                if status == "success":
+                    break
+                else:
+                    yield f"Error: {result}"
+                    return
+            except queue.Empty:
+                pass
+            
+            # Update progress message
+            loop_count += 1
+            if loop_count % 20 == 0:  # Change message every 10 seconds
+                step_index = (step_index + 1) % len(steps)
+            
+            # Display current step with elapsed time
+            elapsed = int(time.time() - start_time)
+            yield f"Working: {steps[step_index]} (elapsed: {elapsed} seconds)"
+            
+            time.sleep(0.5)
+            
+            # Check for timeout
+            if time.time() - start_time > timeout_seconds:
+                yield "Error: The research is taking too long. Please try a more specific question or restart the AI system."
+                return
+        
+        # If we get here and thread is still alive, we timed out
+        if thread.is_alive():
+            yield "Error: Research timed out. Please try a more specific question or restart the AI system."
+            return
+            
+        # Get the result from the queue
+        status, result = result_queue.get()
+        if status == "error":
+            yield f"Error: {result}"
+            return
         
         # Extract the result text
+        yield "Finishing: Compiling final answer..."
         result_text = ""
         if hasattr(result, "raw_output"):
             result_text = result.raw_output
@@ -159,8 +240,17 @@ def process_message(message, history):
         yield f"{result_text}\n\n_(Completed in {elapsed_time:.2f} seconds)_"
         
     except Exception as e:
-        # Handle errors
-        yield f"Error: {str(e)}"
+        yield f"Error: {str(e)}\n\nPlease try asking a different question or restarting the chat interface."
+
+def reset_tools_and_crew():
+    """Reset the tools and crew for a fresh start."""
+    global search_tool, clarification_tool, agent_crew
+    search_tool = None
+    clarification_tool = None
+    agent_crew = None
+    
+    # Force reinitialization
+    initialize_tools_and_crew()
 
 # Initialize tools and crew at startup
 initialize_tools_and_crew()
@@ -172,7 +262,7 @@ demo = gr.ChatInterface(
     description="Ask questions about your documents and get comprehensive answers from our multi-agent system.",
     theme=gr.themes.Soft(),
     flagging_mode="manual",
-    flagging_options=["Like", "Spam", "Inappropriate", "Other"],
+    flagging_options=["Like", "Spam", "Inappropriate", "Other", "Restart System"],
     save_history=True,
     type="messages",
     examples=[
@@ -189,6 +279,22 @@ demo = gr.ChatInterface(
     ),
     analytics_enabled=False
 )
+
+# Add callback for flag button 
+def handle_flag(flag_value):
+    if flag_value == "Restart System":
+        # Reset tools and crew
+        global search_tool, clarification_tool, agent_crew
+        search_tool = None
+        clarification_tool = None
+        agent_crew = None
+        initialize_tools_and_crew()
+        return "AI system has been reset. Start a new conversation."
+    return f"Flagged as: {flag_value}"
+
+# Connect the flagging callback
+if hasattr(demo, 'flagging_callback'):
+    demo.flagging_callback = handle_flag
 
 if __name__ == "__main__":
     # Check if vector store exists

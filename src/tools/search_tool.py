@@ -21,6 +21,10 @@ class SimpleCache:
     def set(self, key, value):
         self.cache[key] = (time.time(), value)
 
+    def clear(self):
+        """Clear all cached entries."""
+        self.cache = {}
+
 # Global cache instance
 _search_cache = SimpleCache(ttl=300)
 
