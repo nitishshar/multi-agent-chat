@@ -101,7 +101,7 @@ class AskForClarificationsTool(BaseTool):
     name: str = "Ask for clarifications"
     description: str = "Ask the user for clarifications when the request is unclear"
     
-    def run(self, question: str) -> str:
+    def run(self, query: str) -> str:
         """
         This method would typically ask the user for clarification,
         but in a Streamlit app this will be handled via the UI.
@@ -112,9 +112,9 @@ class AskForClarificationsTool(BaseTool):
         Returns:
             String with placeholder response
         """
-        return f"[In a Streamlit app, the clarification '{question}' would be handled via the UI]" 
-    def _run(self, question: str) -> str:
-        return self.run(question)
+        return f"[In a Streamlit app, the clarification '{query}' would be handled via the UI]" 
+    def _run(self, query: str) -> str:
+        return self.run(query)
 
-    async def _arun(self, question) -> str:
-        return self.run(question)
+    async def _arun(self, query) -> str:
+        return self.run(query)
