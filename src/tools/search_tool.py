@@ -1,5 +1,5 @@
 from crewai.tools import BaseTool
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from pydantic import Field
@@ -55,36 +55,41 @@ class VectorStoreSearchTool(BaseTool):
         _search_cache.set(cache_key, results)
         return results
 
-    def run(self, query: str, k: int = 4) -> str:
+    def _run(self, query: str, k: Optional[int] = 4) -> str:
+        """Execute the tool's search functionality."""
         try:
             results = self._search_vector_store(query, k)
             if not results:
                 return "No relevant information found in the knowledge base."
+            
             output = f"Found {len(results)} relevant document(s):\n\n"
             for i, doc in enumerate(results, 1):
                 metadata = doc.metadata
                 source = metadata.get('source_filename', 'Unknown source')
                 headers = ""
+                
                 for level in range(1, 5):
                     level_key = f"Level {level}"
                     if level_key in metadata:
                         headers += f"{metadata[level_key]} > "
+                
                 if headers:
                     headers = headers.rstrip(" > ")
+                
                 content = doc.page_content.strip()
                 output += f"Document {i}:\n"
                 output += f"Source: {source}\n"
                 output += f"Context: {headers}\n"
                 output += f"Content: {content}\n\n"
+                
             return output
         except Exception as e:
             return f"Error searching the knowledge base: {str(e)}"
 
-    def _run(self, query: str, k: int = 4) -> str:
-        return self.run(query, k=k)
-
-    async def _arun(self, query: str, k: int = 4) -> str:
-        return self.run(query, k=k)
+    async def _arun(self, query: str, k: Optional[int] = 4) -> str:
+        """Async version of the tool's search functionality."""
+        # For now, just call the synchronous version
+        return self._run(query, k=k)
 
 class AskForClarificationsTool(BaseTool):
     """
