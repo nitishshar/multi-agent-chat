@@ -11,8 +11,6 @@ load_dotenv()
 # Import our modules
 from src.document_processing.markdown_processor import MarkdownProcessor
 from src.vector_store.store_builder import VectorStoreBuilder
-from src.tools.search_tool import VectorStoreSearchTool, AskForClarificationsTool
-from src.agents.crew import AgentCrewBuilder
 from src.ui.components import UIComponents, Callbacks
 from src.utils.caching import SessionState
 
@@ -21,8 +19,8 @@ VECTOR_DB_PATH = "_vector_db"
 
 # Set page config
 st.set_page_config(
-    page_title="Multi-Agent Research Chat",
-    page_icon="🤖",
+    page_title="Document Processing | Multi-Agent Research",
+    page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -54,67 +52,19 @@ def save_uploaded_files(uploaded_files):
     return temp_dir
 
 @st.cache_resource
-def get_vector_store(rebuild=False):
+def get_vector_store():
     """
     Get or create the vector store.
     
-    Args:
-        rebuild: Whether to rebuild the vector store
-        
     Returns:
         Vector store instance
     """
     vector_store_builder = VectorStoreBuilder(storage_path=VECTOR_DB_PATH)
     
-    if rebuild or not os.path.exists(VECTOR_DB_PATH):
+    if not os.path.exists(VECTOR_DB_PATH):
         return None
     
     return vector_store_builder.load()
-
-@st.cache_resource
-def get_agent_crew(vector_store):
-    """
-    Get or create the agent crew.
-    
-    Args:
-        vector_store: Vector store instance
-        
-    Returns:
-        Agent crew instance
-    """
-    # Create search tool with the vector store
-    search_tool = VectorStoreSearchTool(storage_path=VECTOR_DB_PATH)
-    clarification_tool = AskForClarificationsTool()
-    
-    # Create the agent crew
-    crew_builder = AgentCrewBuilder(tools=[search_tool, clarification_tool])
-    
-    # Build the analyst task with template
-    analyst_task_template = """# Follow these step-by-step instructions:
-1. Understand the user request: Read and analyze thoroughly, taking conversation history into account.
-2. [OPTIONAL] Only ask for clarifications if the request is unclear or ambiguous.
-3. Use the search tool repeatedly as needed to collect relevant information.
-4. Perform any necessary calculations or analyses.
-5. Synthesize gathered data into a comprehensive response.
-6. Provide a detailed answer supported by references.
-
-# Conversation history:
-```{conversation_history}```
-
-# User request:
-```{user_request}```
-
-# IMPORTANT:
-- You MUST only use information found via the search tool.
-- Do NOT rely on external knowledge.
-"""
-    
-    crew_builder.build_analyst_agent()
-    crew_builder.build_reviewer_agent()
-    crew_builder.build_analyst_task(analyst_task_template)
-    crew_builder.build_reviewer_task()
-    
-    return crew_builder.build_crew()
 
 def process_documents(uploaded_files):
     """
@@ -145,76 +95,70 @@ def process_documents(uploaded_files):
     
     st.success(f"Successfully processed {len(uploaded_files)} documents and created {len(document_chunks)} chunks!")
 
-def process_message(message: str, chat_history: List) -> Any:
-    """
-    Process a user message with the agent crew.
-    
-    Args:
-        message: User message
-        chat_history: Chat history
-        
-    Returns:
-        Result from the agent crew
-    """
-    # Get the vector store
-    vector_store = get_vector_store()
-    
-    if not vector_store:
-        raise ValueError("No vector store found. Please upload some documents first.")
-    
-    # Get the agent crew
-    crew = get_agent_crew(vector_store)
-    
-    # Format conversation history for the crew
-    formatted_history = ""
-    for i, (role, content) in enumerate(chat_history[:-1]):  # Exclude the current message
-        formatted_history += f"{role.capitalize()}: {content}\n\n"
-    
-    # Process the message with the crew
-    result = crew.kickoff(
-        inputs={
-            "conversation_history": formatted_history,
-            "user_request": message
-        }
-    )
-    
-    return result
-
 def main():
     """
-    Main function for the Streamlit app.
+    Main function for the Document Processing app.
     """
     # Initialize session state
     SessionState.initialize()
     
     # Render header
-    UIComponents.render_header()
-    
-    # Render sidebar controls
-    UIComponents.render_sidebar_controls(
-        on_clear_history=Callbacks.handle_clear_history,
-        on_regenerate=lambda: Callbacks.handle_regenerate_last_response(process_message)
+    st.title("Document Processing")
+    st.markdown(
+        "Upload and process markdown documents to use with the Multi-Agent Research Chat system."
     )
+    
+    # Render sidebar navigation
+    with st.sidebar:
+        st.header("Navigation")
+        st.markdown(
+            """
+            - **💻 Home**: Document Processing (current)
+            - **💬 [Chat](/Chat)**: Chat with your documents
+            """
+        )
+        
+        st.divider()
+        
+        st.header("About")
+        st.markdown(
+            """
+            This application uses a multi-agent approach:
+            
+            1. **Analyst Agent**: Researches and synthesizes information
+            2. **Reviewer Agent**: Checks and refines the analyst's work
+            
+            This design ensures accurate and comprehensive answers.
+            """
+        )
     
     # File upload section
+    st.header("Upload Documents")
+    st.markdown(
+        """
+        Upload markdown files (.md) to add to the knowledge base. The system will process
+        them and make them available for the chat interface.
+        """
+    )
+    
     uploaded_files = UIComponents.render_file_upload()
     
-    if uploaded_files and st.button("Process Documents"):
+    if uploaded_files and st.button("Process Documents", type="primary"):
         process_documents(uploaded_files)
     
-    # Divider
+    # Vector store status
     st.divider()
+    st.header("Current Document Status")
+    vector_store = get_vector_store()
     
-    # Chat section
-    st.subheader("Chat")
-    
-    # Render chat history
-    UIComponents.render_chat_history()
-    
-    # Render chat input
-    UIComponents.render_chat_input(
-        on_submit=lambda msg: Callbacks.handle_send_message(msg, process_message)
-    )
+    if vector_store:
+        st.success("Documents are loaded and ready for use in the Chat interface!")
+        
+        # Add a button to go to the chat page
+        if st.button("Go to Chat Interface", type="primary"):
+            st.switch_page("pages/01_Chat.py")
+    else:
+        st.warning("No documents have been processed yet. Please upload and process documents.")
 
 if __name__ == "__main__":
     main() 
