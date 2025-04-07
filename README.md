@@ -87,6 +87,22 @@ This project implements several performance optimizations for Streamlit:
 4. The Analyst agent will search for relevant information and compose a response
 5. The Reviewer agent will refine the answer for accuracy and clarity
 
+## Screenshots
+
+Here are some screenshots of the application in action:
+
+### Document Processing
+![Document Processing Screen](images/screenshots/sc1.png)
+*The document processing interface allows you to upload markdown files and build your knowledge base.*
+
+### Chat Interface
+![Chat Interface](images/screenshots/sc2.png)
+*The chat interface with multi-agent responses provides detailed information with references from your documents.*
+
+### Search Results
+![Search Results](images/screenshots/sc3.png)
+*Example of a detailed research response with information extracted from the knowledge base.*
+
 ## Extending the Application
 
 - **Adding New File Types**: Extend the `document_processing` module to support additional file formats

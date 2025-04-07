@@ -3,7 +3,7 @@ import time
 import os
 from dotenv import load_dotenv
 from typing import List, Dict, Any
-
+from gradio.themes import Size
 # Import our modules
 from src.vector_store.store_builder import VectorStoreBuilder
 from src.tools.search_tool import VectorStoreSearchTool, AskForClarificationsTool
@@ -255,14 +255,71 @@ def reset_tools_and_crew():
 # Initialize tools and crew at startup
 initialize_tools_and_crew()
 
-# Create the Gradio Chat Interface
+# Option 1: Soft Neutral Light Theme
+neutral_light_theme = gr.themes.Soft(
+    primary_hue="indigo",  # Subtle accent color
+    secondary_hue="slate", # Neutral secondary
+    neutral_hue="slate",   # Light gray backgrounds
+    # radius_size=gr.themes.Size.xs
+)
+
+# Option 2: Subtle Mint Theme
+mint_theme = gr.themes.Soft(
+    primary_hue="emerald",  # Green-blue accent
+    secondary_hue="gray",   # Neutral secondary
+    neutral_hue="gray",     # Very light backgrounds
+    # radius_size=gr.themes.Size.sm
+)
+
+# Option 3: Warm Light Theme
+warm_theme = gr.themes.Soft(
+    primary_hue="amber",     # Warm accent color
+    secondary_hue="stone",   # Neutral with warm undertones
+    neutral_hue="stone",     # Light backgrounds with warm tone
+    # radius_size=gr.themes.Size.md
+)
+
+# Option 4: Default Theme with Custom Colors
+default_theme = gr.themes.Default(
+    primary_hue=gr.themes.Color(
+        c50="#EEFAFF",
+        c100="#D6F0FF", 
+        c200="#A6DFFF",
+        c300="#76CEFF", 
+        c400="#46BDFF",
+        c500="#1AACFF", 
+        c600="#0096F0",
+        c700="#0078C2", 
+        c800="#005A94",
+        c900="#003C66",
+        c950="#002847",
+    ),
+    neutral_hue=gr.themes.Color(
+        c50="#F9FAFB",
+        c100="#F3F4F6",
+        c200="#E5E7EB", 
+        c300="#D1D5DB",
+        c400="#9CA3AF", 
+        c500="#6B7280",
+        c600="#4B5563", 
+        c700="#374151",
+        c800="#1F2937", 
+        c900="#111827",
+        c950="#030712",
+    )
+)
+
+# Choose one of these themes:
+theme = default_theme  # or mint_theme, warm_theme, or default_theme
+
+# Create the Gradio Chat Interface with our custom theme
 demo = gr.ChatInterface(
     fn=process_message,
     title="Multi-Agent Research Chat",
     description="Ask questions about your documents and get comprehensive answers from our multi-agent system.",
-    theme=gr.themes.Soft(),
+    theme=theme,
     flagging_mode="manual",
-    flagging_options=["Like", "Spam", "Inappropriate", "Other", "Restart System"],
+    flagging_options=["Like", "Spam", "Inappropriate", "Other"],
     save_history=True,
     type="messages",
     examples=[
@@ -271,8 +328,8 @@ demo = gr.ChatInterface(
         "Summarize the financial position overview from the first quarter of 2023"
     ],
     chatbot=gr.Chatbot(
-        avatar_images=("🧑", "🤖"),
-        height=700,
+        avatar_images=["images/user.png", "images/assistant.png"],
+        height=850,
         show_label=False,
         container=True,
         type="messages"
