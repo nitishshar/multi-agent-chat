@@ -91,10 +91,17 @@ class AgentCrewBuilder:
                 "1. Review the Analyst's answer carefully.\n"
                 "2. Identify any errors, inconsistencies, or gaps.\n"
                 "3. Refine and correct the response to enhance clarity and accuracy.\n"
-                "4. Provide a polished final answer."
+                "4. Extract and format all document references used in the response.\n"
+                "5. Provide a polished final answer with a references section."
             ),
             expected_output=(
-                "A finalized markdown-formatted answer ready for delivery. "
+                "A finalized markdown-formatted answer ready for delivery, including:\n"
+                "1. The main content with all corrections and improvements\n"
+                "2. A 'References' section at the end listing all documents used, formatted as:\n"
+                "   ```\n"
+                "   ## References\n"
+                "   - [Document Title](source_filename) - Context: [header hierarchy]\n"
+                "   ```\n"
                 "DO NOT include triple backticks around the markdown. DO NOT include additional comments. Just respond with markdown."
             ),
             agent=self.reviewer_agent,
