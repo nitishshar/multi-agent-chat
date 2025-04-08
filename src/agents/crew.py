@@ -100,7 +100,7 @@ class AgentCrewBuilder:
                 "2. A 'References' section at the end listing all documents used, formatted as:\n"
                 "   ```\n"
                 "   ## References\n"
-                "   - [Document Title](source_filename) - Context: [header hierarchy]\n"
+                "   - <a href='source_filename' target='_blank'>Document Title</a>\n"
                 "   ```\n"
                 "DO NOT include triple backticks around the markdown. DO NOT include additional comments. Just respond with markdown."
             ),
