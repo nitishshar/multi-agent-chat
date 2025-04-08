@@ -63,8 +63,12 @@ def initialize_tools_and_crew():
         
         # Build the crew
         analyst_agent = crew_builder.build_analyst_agent()
-        analyst_task= crew_builder.build_analyst_task(analyst_task_template)
-        agent_crew = crew_builder.build_crew_with_agents([analyst_agent], [analyst_task])
+        analyst_task= crew_builder.build_analyst_task(analyst_task_template)       
+        # agent_crew = crew_builder.build_crew_with_agents([analyst_agent], [analyst_task])
+        reviewer_agent = crew_builder.build_reviewer_agent()
+        reviewer_task = crew_builder.build_reviewer_task()
+        agent_crew = crew_builder.build_crew_with_agents([analyst_agent, reviewer_agent], [analyst_task, reviewer_task])
+        
         print("Agent crew initialized successfully")
 
 def get_vector_store():
@@ -182,7 +186,7 @@ demo = gr.ChatInterface(
     ],
     chatbot=gr.Chatbot(
         avatar_images=("images/user.png", "images/assistant.png"),
-        height=700,
+        height=850,
         show_label=False,
         container=True,
         type="messages"
