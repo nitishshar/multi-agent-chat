@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 REM Run the app
 echo Starting Streamlit app...
-streamlit run app.py
+python gradio_chat.py
 
 REM Deactivate virtual environment
 call venv\Scripts\deactivate 

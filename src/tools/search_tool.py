@@ -1,4 +1,4 @@
-from crewai.tools import BaseTool
+from crewai.tools.base_tool import BaseTool
 from typing import Any, Optional
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma

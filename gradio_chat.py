@@ -181,7 +181,7 @@ demo = gr.ChatInterface(
         "Summarize the financial position overview from the first quarter of 2023"
     ],
     chatbot=gr.Chatbot(
-        avatar_images=("🧑", "🤖"),
+        avatar_images=("images/user.png", "images/assistant.png"),
         height=700,
         show_label=False,
         container=True,
